@@ -63,7 +63,7 @@ h.query(...)
 
 ### Class Mixin
 
-You can make your own objects rbpath by using the RbPath mixin.
+You can make your own objects queryable by using the RbPath mixin.
 
 ```ruby
 require 'rbpath'
@@ -84,7 +84,7 @@ Notice that the rbpath attributes must be explicitly listed.
 ## Queries
 
 Queries are similar to XPath expressions. They are used to navigate and find
-information in heirarchial data.
+information in tree-like data structures.
 
 ```ruby
 class Employee < Struct.new(:first, :last, :position)
