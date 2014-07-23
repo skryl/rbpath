@@ -1,0 +1,66 @@
+#!/usr/bin/env ruby
+
+GC.disable # short lived process doesn't need gc
+
+lib = "#{File.expand_path(File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__)}/../../lib"
+$LOAD_PATH.unshift lib unless $LOAD_PATH.include?(lib)
+
+require 'optparse'
+require 'rbpath'
+require 'pp'
+
+begin
+  require 'hirb'
+rescue LoadError
+end
+
+options = {}
+optparse = OptionParser.new do |opts|
+  opts.banner = "Usage: rq [OPTIONS] QUERY"
+
+  opts.on("-f", "--file [FILE]",  "File to parse") { |opt| options[:file]  = opt }
+  opts.on("-t", "--type [TYPE]",  "File format")   { |opt| options[:type]  = opt }
+  opts.on("-p", "--paths",        "Paths only")    { |opt| options[:paths] = true}
+  opts.on("-h", "--help", "Show usage")            { puts opts; exit }
+end
+
+begin
+  optparse.parse!(ARGV)
+  query      = ARGV.shift.to_s
+  file, type = options.values_at(:file, :type)
+  content    = (file && File.read(file)) || ARGF.read
+  extension  = type || (file && File.extname(file)[1..-1]) || 'json'
+
+  raise OptionParser::MissingArgument unless query
+
+  data = \
+    case extension
+    when 'yml', 'yaml'
+      require 'yaml'
+      YAML.load(content)
+    when 'jsn', 'json'
+      require 'json'
+      JSON.parse(content)
+    when 'xml'
+      require 'xmlsimple'
+      XmlSimple.xml_in(content, 'ForceArray' => false)
+    end
+
+rescue LoadError
+    puts "You are probably missing the 'xml-simple' gem, install it by running 'gem install xml-simple' and try again."
+    exit
+rescue OptionParser::MissingArgument
+    puts optparse.help
+    exit
+rescue Exception => e
+    puts "Error: #{e}"
+    exit
+end
+
+result = RbPath::Query.new(query).send(options[:paths] ? :pquery : :query, data)
+
+if options[:paths]
+  defined?(Hirb)
+  puts(Hirb::Helpers::AutoTable.render(result))
+else puts result.map(&:pretty_inspect)
+end
